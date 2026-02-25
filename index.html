@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>THE TCC TITAN - CENTRAL DE COMANDO</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        :root {
+            --boss-color: #ff4d4d; --team-color: #4caf50; --devops-color: #2496ed; --bg-dark: #0a0a0c;
+        }
+
+        body { background: var(--bg-dark); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; transition: background 0.5s; }
+        
+        /* Painel Lateral */
+        #side-panel { width: 300px; background: rgba(0,0,0,0.9); border-right: 1px solid #333; display: flex; flex-direction: column; padding: 20px; z-index: 5; }
+        #event-log { flex-grow: 1; overflow-y: hidden; font-family: monospace; font-size: 13px; color: #888; }
+        .log-entry { margin-bottom: 5px; border-left: 2px solid #444; padding-left: 8px; animation: slideIn 0.3s; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* Arena */
+        #arena { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; position: relative; }
+        #boss-img { font-size: 180px; filter: drop-shadow(0 0 20px var(--boss-color)); transition: transform 0.1s; }
+        .shake { animation: shake 0.2s infinite; }
+        @keyframes shake { 0%, 100% { transform: translate(0,0); } 25% { transform: translate(-4px, 2px); } 75% { transform: translate(4px, -2px); } }
+
+        /* Barras */
+        .bar-container { width: 100%; max-width: 800px; background: #222; border: 2px solid #444; height: 40px; margin: 10px 0; position: relative; overflow: hidden; }
+        .bar-fill { height: 100%; transition: width 0.3s ease-out; }
+        #boss-fill { background: linear-gradient(90deg, #ff0000, #ff4d4d); }
+        #team-fill { background: linear-gradient(90deg, #2e7d32, #4caf50); }
+        .bar-label { position: absolute; width: 100%; text-align: center; top: 50%; transform: translateY(-50%); font-weight: bold; letter-spacing: 2px; text-shadow: 1px 1px 2px black; }
+
+        /* Telas de Estado */
+        .overlay-screen { position: absolute; top:0; left:0; width:100%; height:100%; background: var(--bg-dark); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+        .class-list { display: flex; gap: 20px; margin-top: 20px; }
+        .class-card { padding: 15px; border: 2px solid #444; border-radius: 8px; opacity: 0.4; }
+        .class-card.ready { opacity: 1; border-color: var(--team-color); background: rgba(76, 175, 80, 0.1); }
+    </style>
+</head>
+<body>
+
+    <div id="lobby-screen" class="overlay-screen" style="display: flex;">
+        <h1 style="font-size: 48px;">AGUARDANDO SQUAD...</h1>
+        <p>O jogo iniciará quando todas as classes estiverem presentes.</p>
+        <div class="class-list" id="lobby-classes">
+            <div class="class-card" id="card-Front-end">FRONT-END</div>
+            <div class="class-card" id="card-Back-end">BACK-END</div>
+            <div class="class-card" id="card-DevOps">DEVOPS</div>
+            <div class="class-card" id="card-QA">QA</div>
+            <div class="class-card" id="card-Security">SECURITY</div>
+        </div>
+    </div>
+
+    <div id="end-screen" class="overlay-screen">
+        <h1 id="end-title" style="font-size: 80px;"></h1>
+        <p id="end-msg"></p>
+        <button onclick="location.reload()" style="padding: 15px 30px; margin-top: 20px; cursor: pointer;">REINICIAR SERVIDOR</button>
+    </div>
+
+    <div id="side-panel">
+        <h3 style="color: var(--devops-color);">SYSTEM_LOGS</h3>
+        <div id="event-log"></div>
+    </div>
+
+    <div id="arena">
+        <div id="multiplier-badge" style="font-size: 24px; color: var(--devops-color); margin-bottom: 10px;">MULTIPLICADOR: <span id="mult-val">1.0</span>x</div>
+        <div id="boss-img">🐉</div>
+        <div class="bar-container" style="border-color: var(--boss-color);">
+            <div id="boss-fill" class="bar-fill" style="width: 100%;"></div>
+            <div class="bar-label">THE TCC TITAN: <span id="boss-hp">1.000.000</span></div>
+        </div>
+        <div class="bar-container" style="border-color: var(--team-color); height: 30px;">
+            <div id="team-fill" class="bar-fill" style="width: 100%;"></div>
+            <div class="bar-label">CÓDIGO INTEGRITY: <span id="team-hp">1000</span></div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io('http://localhost:3001');
+        let lastHp = 1000000;
+
+        socket.on('boss_update', (data) => {
+            const { status, boss, team_hp, max_team_hp, multiplier, active_incident, class_counts } = data;
+
+            // Gerenciar Telas de Status
+            document.getElementById('lobby-screen').style.display = (status === 'WAITING') ? 'flex' : 'none';
+            if (status === 'WAITING') {
+                for (const [cls, count] of Object.entries(class_counts)) {
+                    if (count > 0) document.getElementById(`card-${cls}`).classList.add('ready');
+                }
+                return;
+            }
+
+            if (status === 'GAMEOVER' || status === 'VICTORY') {
+                const screen = document.getElementById('end-screen');
+                screen.style.display = 'flex';
+                screen.style.background = status === 'VICTORY' ? '#030' : '#400';
+                document.getElementById('end-title').innerText = status === 'VICTORY' ? 'VITÓRIA!' : 'GAME OVER';
+                document.getElementById('end-msg').innerText = status === 'VICTORY' ? 'O TCC FOI APROVADO COM DISTINÇÃO!' : 'O CÓDIGO VIROU LEGADO E O PROJETO FOI CANCELADO.';
+                return;
+            }
+
+            // Atualizar Barras
+            document.getElementById('boss-fill').style.width = (boss.hp / boss.max_hp * 100) + '%';
+            document.getElementById('boss-hp').innerText = boss.hp.toLocaleString();
+            document.getElementById('team-fill').style.width = (team_hp / max_team_hp * 100) + '%';
+            document.getElementById('team-hp').innerText = team_hp;
+            document.getElementById('mult-val').innerText = multiplier.toFixed(2);
+
+            // Shake no Boss se levar dano
+            if (boss.hp < lastHp) {
+                document.getElementById('boss-img').classList.add('shake');
+                setTimeout(() => document.getElementById('boss-img').classList.remove('shake'), 200);
+            }
+            lastHp = boss.hp;
+
+            // Cores de Incidentes
+            handleVisualIncidents(active_incident);
+        });
+
+        function handleVisualIncidents(incident) {
+            const arena = document.body;
+            if (incident === "database_lock") { arena.style.background = "#2c3e50"; addLog("DBA: Banco de dados travado!"); }
+            else if (incident === "legacy_code_spill") { arena.style.background = "#1b4d3e"; addLog("ALERTA: Vazamento de código legado!"); }
+            else if (incident === "error_500") { arena.style.background = "#4a0000"; }
+            else if (incident === "") { arena.style.background = "#0a0a0c"; }
+        }
+
+        function addLog(msg) {
+            const log = document.getElementById('event-log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerText = `> ${msg}`;
+            log.prepend(entry);
+        }
+    </script>
+</body>
+</html>
