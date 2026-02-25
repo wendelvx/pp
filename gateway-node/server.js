@@ -6,7 +6,9 @@ const client = require('prom-client');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server, { 
+    cors: { origin: "*" } 
+});
 
 // --- CONFIGURAÇÃO DE MÉTRICAS (PROMETHEUS) ---
 const register = new client.Registry();
@@ -25,52 +27,60 @@ app.get('/metrics', async (req, res) => {
 });
 
 // --- CONFIGURAÇÃO DO REDIS ---
+// Conecta ao container 'redis' definido no docker-compose
 const redisPub = new Redis({ host: 'redis', port: 6379 });
 const redisSub = new Redis({ host: 'redis', port: 6379 });
 
-// Ouvir respostas da Engine Go e repassar para todos os alunos
+// Ouvir respostas da Engine Go e repassar para todos os clientes (App e Central)
 redisSub.subscribe('boss_updates');
 redisSub.on('message', (channel, message) => {
-  // Broadcast do estado global do jogo (HP, Incidentes, Multiplicador, Status)
   io.emit('boss_update', JSON.parse(message));
 });
 
-// --- LÓGICA DE CONEXÃO DOS ALUNOS ---
+// --- LÓGICA DE CONEXÃO ---
 io.on('connection', (socket) => {
   console.log(`Conexão estabelecida: ${socket.id}`);
 
-  // Evento de Entrada (Join)
+  // 1. Evento de Entrada (Join do Aluno)
   socket.on('join_game', (data) => {
-    // data = { nickname: 'Panda', class: 'Front-end' }
     socket.data.playerClass = data.class;
     socket.data.nickname = data.nickname;
 
     console.log(`[JOIN] ${data.nickname} escolheu ${data.class}`);
 
-    // Notifica o Go para ele incrementar o contador de classes e checar se o jogo pode começar
+    // Publica no Redis para o Go registrar a entrada
     redisPub.publish('player_attacks', JSON.stringify({
-      type: 'join', // O Go usará esse campo para diferenciar de um ataque
+      type: 'join',
       class: data.class,
       nickname: data.nickname,
       timestamp: Date.now()
     }));
   });
 
-  // Evento de Ação (Ataque ou Interação com Incidente)
+  // 2. Evento de Ação (Ataque do Aluno)
   socket.on('attack', (data) => {
     const playerClass = socket.data.playerClass;
-    
-    // Se o player ainda não escolheu classe, ignora
     if (!playerClass) return;
 
-    // 1. Incrementa métrica para o Grafana (RNF03)
+    // Incrementa métrica para o Grafana
     attackCounter.inc({ class: playerClass });
 
-    // 2. Envia para o Redis
+    // Envia o ataque para processamento na Engine Go
     redisPub.publish('player_attacks', JSON.stringify({
       type: 'attack',
       class: playerClass,
-      isFake: data?.isFake || false, // Importante para o Phishing do Security
+      isFake: data?.isFake || false,
+      timestamp: Date.now()
+    }));
+  });
+
+  // 3. NOVO: Comando do Mestre (Botão Start no index.html)
+  // Este evento é disparado pela Central de Comando para forçar o início
+  socket.on('admin_start_game', () => {
+    console.log("🕹️  Comando de Administrador: Iniciando Batalha!");
+    
+    redisPub.publish('player_attacks', JSON.stringify({
+      type: 'start_command',
       timestamp: Date.now()
     }));
   });
@@ -80,6 +90,7 @@ io.on('connection', (socket) => {
   });
 });
 
+// Porta 3001 para bater com o docker-compose e o Cloudflare Tunnel
 server.listen(3001, () => {
-  console.log('🚀 Gateway Node.js (Porta 3001) aguardando conexões...');
+  console.log('🚀 Gateway Node.js Online (Porta 3001)');
 });
