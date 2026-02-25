@@ -1,23 +1,21 @@
 global:
-  scrape_interval: 2s # Coleta dados a cada 2 segundos para o gráfico no telão ser "vivo"
-  evaluation_interval: 2s
+  scrape_interval: 1s     # Coleta dados a cada 1 segundo (Máxima precisão para o TCC)
+  evaluation_interval: 1s
 
 scrape_configs:
-  # 1. O próprio Prometheus se monitorando
+  # 1. Prometheus se monitorando
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
   # 2. Gateway Node.js (Socket.io)
-  # O nome 'node-gateway' deve ser o nome do serviço que daremos no docker-compose depois
   - job_name: 'node-gateway'
     metrics_path: '/metrics'
     static_configs:
-      - targets: ['node-gateway:3001']
+      - targets: ['node-gateway:3001'] # Nome do serviço no docker-compose
 
   # 3. Engine de Batalha (Go)
-  # Go é extremamente rápido, métricas aqui são essenciais para o RNF03
   - job_name: 'go-engine'
     metrics_path: '/metrics'
     static_configs:
-      - targets: ['go-engine:8080']
+      - targets: ['go-engine:8080'] # Nome do serviço no docker-compose
