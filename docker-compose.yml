@@ -33,9 +33,14 @@ services:
 
   # O Porteiro: Gerencia as conexões dos 90 alunos
   node-gateway:
-    build: ./gateway-node
+    build: 
+      context: ./gateway-node
+      dockerfile: Dockerfile
     container_name: node_gateway
     restart: unless-stopped
+    environment:
+      - REDIS_HOST=redis
+      - PORT=3001
     ports:
       - "3001:3001"
     depends_on:
@@ -44,9 +49,13 @@ services:
 
   # Engine de Batalha (Go)
   go-engine:
-    build: ./go-engine
+    build: 
+      context: ./go-engine
+      dockerfile: Dockerfile
     container_name: go_engine
     restart: unless-stopped
+    environment:
+      - REDIS_ADDR=redis:6379
     depends_on:
       redis:
         condition: service_healthy
@@ -61,16 +70,21 @@ services:
     ports:
       - "9090:9090"
     depends_on:
-      - node-gateway
-      - go-engine
+      node-gateway:
+        condition: service_started
+      go-engine:
+        condition: service_started
 
-  # Painel de Controle: Onde você mostra o "show" no telão
+  # Painel de Controle: Dashboard do Show
   grafana:
     image: grafana/grafana
     container_name: dungeon_grafana
     restart: unless-stopped
     ports:
       - "3000:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true # Facilita a visualização na sala
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
     volumes:
       - grafanadata:/var/lib/grafana
     depends_on:
