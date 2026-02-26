@@ -25,6 +25,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro # Cria as tabelas automaticamente
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d dungeon_master"]
       interval: 5s
@@ -56,9 +57,12 @@ services:
     restart: unless-stopped
     environment:
       - REDIS_ADDR=redis:6379
+      - DATABASE_URL=postgres://admin:tcc_password@postgres:5432/dungeon_master?sslmode=disable
     depends_on:
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy # Garante que as tabelas existam antes de ligar a engine
 
   # Observabilidade: Coleta de métricas em tempo real
   prometheus:
@@ -83,7 +87,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_AUTH_ANONYMOUS_ENABLED=true # Facilita a visualização na sala
+      - GF_AUTH_ANONYMOUS_ENABLED=true 
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
     volumes:
       - grafanadata:/var/lib/grafana
