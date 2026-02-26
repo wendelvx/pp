@@ -6,37 +6,129 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         :root {
-            --boss-color: #ff4d4d; --team-color: #4caf50; --devops-color: #2496ed; 
-            --bg-dark: #050507; --accent: #FFEB3B;
+            --boss-color: #ff4d4d; 
+            --team-color: #4caf50; 
+            --devops-color: #2496ed; 
+            --bg-dark: #050507; 
+            --accent: #FFEB3B;
         }
 
         body { 
-            background: var(--bg-dark); color: white; font-family: 'JetBrains Mono', 'Segoe UI', monospace; 
-            margin: 0; display: flex; height: 100vh; overflow: hidden; 
+            background: var(--bg-dark); 
+            color: white; 
+            font-family: 'JetBrains Mono', 'Segoe UI', monospace; 
+            margin: 0; 
+            display: flex; 
+            height: 100vh; 
+            overflow: hidden; 
         }
         
+        /* Botão de Reset Global (Canto Superior Direito) */
+        #admin-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+        }
+        .reset-global-btn {
+            background: rgba(255, 77, 77, 0.1);
+            color: var(--boss-color);
+            border: 1px solid var(--boss-color);
+            padding: 10px 20px;
+            font-family: 'JetBrains Mono';
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+        .reset-global-btn:hover {
+            background: var(--boss-color);
+            color: black;
+            box-shadow: 0 0 20px var(--boss-color);
+        }
+
         /* Painel Lateral Estilo Terminal */
         #side-panel { 
-            width: 350px; background: rgba(0,0,0,0.95); border-right: 1px solid #222; 
-            display: flex; flex-direction: column; padding: 20px; box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+            width: 350px; 
+            background: rgba(0,0,0,0.95); 
+            border-right: 1px solid #222; 
+            display: flex; 
+            flex-direction: column; 
+            padding: 20px; 
+            box-shadow: 10px 0 30px rgba(0,0,0,0.5);
         }
         #event-log { flex-grow: 1; overflow: hidden; font-size: 12px; color: #00ff41; }
         .log-entry { margin-bottom: 8px; border-left: 2px solid #00ff41; padding-left: 10px; opacity: 0.8; }
 
         /* Arena Central */
         #arena { 
-            flex-grow: 1; display: flex; flex-direction: column; align-items: center; 
-            justify-content: center; padding: 40px; position: relative; 
+            flex-grow: 1; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 40px; 
+            position: relative; 
         }
         
-        #boss-display { text-align: center; margin-bottom: 30px; }
-        #boss-img { 
-            font-size: 160px; filter: drop-shadow(0 0 30px var(--boss-color)); 
-            transition: transform 0.1s; margin-bottom: 10px; display: block;
+        #boss-display { 
+            text-align: center; 
+            margin-bottom: 30px; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        #boss-name-text { font-size: 32px; font-weight: 900; letter-spacing: 5px; text-transform: uppercase; color: var(--boss-color); }
 
-        /* Barras de Status */
+        #boss-img { 
+            width: 300px; 
+            height: 300px; 
+            object-fit: contain;
+            filter: drop-shadow(0 0 30px var(--boss-color)); 
+            transition: transform 0.1s; 
+            margin-bottom: 20px; 
+            display: block;
+        }
+
+        #boss-name-text { 
+            font-size: 32px; 
+            font-weight: 900; 
+            letter-spacing: 5px; 
+            text-transform: uppercase; 
+            color: var(--boss-color); 
+            text-shadow: 0 0 10px rgba(255, 77, 77, 0.5);
+        }
+
+        /* Grid de Miniaturas no Lobby */
+        .boss-selection-grid {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .boss-thumb {
+            width: 120px;
+            height: 120px;
+            border-radius: 8px;
+            border: 2px solid #222;
+            cursor: pointer;
+            transition: all 0.3s;
+            opacity: 0.4;
+            background: #111;
+            padding: 5px;
+            object-fit: contain;
+        }
+        .boss-thumb:hover {
+            opacity: 0.8;
+            border-color: var(--devops-color);
+        }
+        .boss-thumb.selected {
+            opacity: 1;
+            border-color: var(--accent);
+            box-shadow: 0 0 20px var(--accent);
+            transform: scale(1.1);
+        }
+
+        /* Status Bars */
         .bar-container { 
             width: 100%; max-width: 900px; background: #111; border: 1px solid #333; 
             height: 50px; margin: 15px 0; position: relative; border-radius: 4px; overflow: hidden;
@@ -49,16 +141,7 @@
             transform: translateY(-50%); font-weight: bold; font-size: 18px; text-shadow: 2px 2px 4px black; 
         }
 
-        /* Indicador de Incidente Ativo */
-        #incident-overlay {
-            width: 100%; max-width: 900px; background: rgba(255, 235, 59, 0.1); 
-            border: 1px solid var(--accent); padding: 15px; border-radius: 4px;
-            display: none; flex-direction: column; align-items: center; margin-top: 20px;
-        }
-        #incident-bar-bg { width: 100%; height: 10px; background: #000; margin-top: 10px; border-radius: 5px; overflow: hidden; }
-        #incident-bar-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
-
-        /* Telas de Overlay (Lobby e Fim) */
+        /* Overlays */
         .overlay-screen { 
             position: absolute; top:0; left:0; width:100%; height:100%; 
             background: rgba(5,5,7,0.98); display: none; flex-direction: column; 
@@ -71,12 +154,6 @@
         }
         .class-card.ready { color: var(--team-color); border-color: var(--team-color); box-shadow: 0 0 15px rgba(76,175,80,0.2); transform: translateY(-10px); }
 
-        /* Admin/Boss Selector */
-        #boss-select {
-            background: #111; color: white; border: 1px solid #444; padding: 12px;
-            border-radius: 8px; font-family: 'JetBrains Mono'; font-size: 16px; margin-bottom: 20px;
-        }
-
         .admin-btn {
             background: var(--devops-color); color: white; border: none; padding: 15px 40px;
             font-weight: bold; font-size: 18px; border-radius: 8px; cursor: pointer;
@@ -85,22 +162,37 @@
         .admin-btn:hover { transform: scale(1.05); background: #1a74ba; }
 
         .shake { animation: shake 0.2s infinite; }
-        @keyframes shake { 0% { transform: rotate(0deg); } 25% { transform: rotate(2deg) translate(5px, -5px); } 75% { transform: rotate(-2deg) translate(-5px, 5px); } }
+        @keyframes shake { 
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
     </style>
 </head>
 <body>
 
+    <div id="admin-controls">
+        <button class="reset-global-btn" onclick="forceReset()">♻️ Reset Global</button>
+    </div>
+
     <div id="lobby-screen" class="overlay-screen" style="display: flex;">
         <h1 style="font-size: 60px; letter-spacing: 10px;">SQUAD_FORMATION</h1>
-        <p style="color: #666; margin-bottom: 40px;">Selecione o desafio e aguarde o Squad...</p>
+        <p style="color: #666; margin-bottom: 20px;">Selecione o Professor e aguarde o Squad...</p>
 
-        <label style="color: var(--accent); font-size: 12px; margin-bottom: 8px;">CONFIGURAÇÃO DE INSTÂNCIA:</label>
-        <select id="boss-select">
-            <option value="tcc_titan">🐉 THE TCC TITAN (DEFAULT)</option>
-            <option value="arquiteto">🏛️ O ARQUITETO (BACKEND)</option>
-            <option value="pixel_perfect">🎨 O PIXEL PERFECT (FRONTEND)</option>
-            <option value="guardiao">🛡️ O GUARDIÃO (SECURITY/QA)</option>
-        </select>
+        <div class="boss-selection-grid">
+            <img src="assets/bosses/tcc_titan.jpg" class="boss-thumb selected" id="thumb-tcc_titan" onclick="selectBoss('tcc_titan')" title="The TCC Titan">
+            <img src="assets/bosses/arquiteto.jpg" class="boss-thumb" id="thumb-arquiteto" onclick="selectBoss('arquiteto')" title="O Arquiteto">
+            <img src="assets/bosses/pixel_perfect.jpg" class="boss-thumb" id="thumb-pixel_perfect" onclick="selectBoss('pixel_perfect')" title="O Pixel Perfect">
+            <img src="assets/bosses/guardiao.jpg" class="boss-thumb" id="thumb-guardiao" onclick="selectBoss('guardiao')" title="O Guardião">
+        </div>
 
         <div class="class-list" id="lobby-classes">
             <div class="class-card" id="card-Front-end">FRONT-END</div>
@@ -113,26 +205,15 @@
         <button class="admin-btn" style="margin-top: 50px;" onclick="forceStart()">INICIAR BATALHA ⚔️</button>
     </div>
 
-    <div id="end-screen" class="overlay-screen">
-        <h1 id="end-title" style="font-size: 100px;"></h1>
-        <p id="end-msg" style="font-size: 24px; letter-spacing: 5px;"></p>
-        <button onclick="location.reload()" style="margin-top: 40px; padding: 20px 50px; cursor: pointer; background: white; font-weight: bold; border: none;">REINICIAR COMANDO</button>
-    </div>
-
-    <div id="side-panel">
-        <h2 style="color: var(--devops-color); font-size: 18px;">> STACK_INTELLIGENCE</h2>
-        <div id="event-log"></div>
-    </div>
-
     <div id="arena">
         <div id="boss-display">
-            <span id="boss-img">🐉</span>
-            <span id="boss-name-text">CARREGANDO...</span>
+            <img id="boss-img" src="assets/bosses/tcc_titan.jpg" alt="Professor Boss">
+            <span id="boss-name-text">CARREGANDO PROFESSOR...</span>
         </div>
         
         <div class="bar-container" style="border-color: var(--boss-color);">
             <div id="boss-fill" class="bar-fill" style="width: 100%;"></div>
-            <div class="bar-label">BOSS_INTEGRITY: <span id="boss-hp">0</span></div>
+            <div class="bar-label">PROF_INTEGRITY: <span id="boss-hp">0</span></div>
         </div>
         
         <div class="bar-container" style="border-color: var(--team-color); height: 35px;">
@@ -140,9 +221,11 @@
             <div class="bar-label">TEAM_RELIABILITY: <span id="team-hp">0</span> / <span id="max-team-hp">0</span></div>
         </div>
 
-        <div id="incident-overlay">
+        <div id="incident-overlay" style="display: none; flex-direction: column; align-items: center; margin-top: 20px; width: 100%; max-width: 900px; background: rgba(255, 235, 59, 0.1); border: 1px solid var(--accent); padding: 15px; border-radius: 4px;">
             <div style="color: var(--accent); font-weight: bold; font-size: 20px;">🚨 INCIDENTE ATIVO: <span id="incident-name">---</span></div>
-            <div id="incident-bar-bg"><div id="incident-bar-fill"></div></div>
+            <div style="width: 100%; height: 10px; background: #000; margin-top: 10px; border-radius: 5px; overflow: hidden;">
+                <div id="incident-bar-fill" style="height: 100%; background: var(--accent); width: 0%; transition: width 0.3s;"></div>
+            </div>
             <div style="font-size: 12px; margin-top: 5px; color: var(--accent);">RESOLUÇÃO: <span id="incident-count">0/0</span> CLIQUES</div>
         </div>
 
@@ -152,33 +235,64 @@
         </div>
     </div>
 
-    <script>
-        // URL do túnel do Cloudflare
-        const socket = io('https://mba-enrolled-obituaries-authorized.trycloudflare.com');
-        let lastHp = 0;
+    <div id="end-screen" class="overlay-screen">
+        <h1 id="end-title" style="font-size: 100px;"></h1>
+        <p id="end-msg" style="font-size: 24px; letter-spacing: 5px;"></p>
+        <button onclick="forceReset()" style="margin-top: 40px; padding: 20px 50px; cursor: pointer; background: white; font-weight: bold; border: none; text-transform: uppercase;">Reiniciar Instância</button>
+    </div>
 
-        const bossIcons = {
-            arquiteto: '🏛️', 
-            pixel_perfect: '🎨', 
-            tcc_titan: '🐉', 
-            guardiao: '🛡️'
+    <div id="side-panel">
+        <h2 style="color: var(--devops-color); font-size: 18px;">> STACK_INTELLIGENCE</h2>
+        <div id="event-log"></div>
+    </div>
+
+    <script>
+        const socket = io('https://cadillac-tribe-orlando-bolt.trycloudflare.com');
+        let lastHp = 0;
+        let selectedBossId = 'tcc_titan'; // Boss padrão
+
+        const bossImages = {
+            arquiteto: 'assets/bosses/arquiteto.jpg', 
+            pixel_perfect: 'assets/bosses/pixel_perfect.jpg', 
+            tcc_titan: 'assets/bosses/tcc_titan.jpg', 
+            guardiao: 'assets/bosses/guardiao.jpg'
         };
 
-        // Função de Início que lê o ID selecionado no Dropdown
+        // Função para selecionar o boss visualmente
+        function selectBoss(id) {
+            selectedBossId = id;
+            // Atualiza bordas das thumbnails
+            document.querySelectorAll('.boss-thumb').forEach(t => t.classList.remove('selected'));
+            document.getElementById(`thumb-${id}`).classList.add('selected');
+            
+            // Log no terminal local
+            addLog(`BOSS_TARGET_SIGHTED: ${id.toUpperCase()}`);
+        }
+
+        // Envia o comando de início para o Go
         function forceStart() {
-            const selectedId = document.getElementById('boss-select').value;
-            console.log(`🚀 Solicitando início com boss: ${selectedId}`);
-            socket.emit('admin_start_game', { boss_id: selectedId });
+            console.log(`🚀 Iniciando com boss: ${selectedBossId}`);
+            socket.emit('admin_start_game', { boss_id: selectedBossId });
+        }
+
+        // Função de Reset Global
+        function forceReset() {
+            addLog("!! ALERTA: SOLICITANDO RESET GLOBAL DO SISTEMA !!");
+            // Enviamos um comando start_game com um payload vazio ou específico que o Go interpreta como reset se já estiver rodando
+            socket.emit('admin_start_game', { type: 'reset' });
+            
+            // Pequeno delay para recarregar a página e limpar o estado local do navegador
+            setTimeout(() => location.reload(), 500);
         }
 
         socket.on('boss_update', (data) => {
             const { status, boss, boss_hp, team_hp, max_team_hp, multiplier, active_incident, class_counts } = data;
 
-            // 1. Gerenciamento de Telas
+            // 1. Visibilidade das Telas
             document.getElementById('lobby-screen').style.display = (status === 'WAITING') ? 'flex' : 'none';
             document.getElementById('end-screen').style.display = (status === 'VICTORY' || status === 'GAMEOVER') ? 'flex' : 'none';
 
-            // 2. Atualização do Lobby (Cards de Classe)
+            // 2. Atualização do Lobby
             if (status === 'WAITING') {
                 const roles = ['Front-end', 'Back-end', 'DevOps', 'QA', 'Security'];
                 roles.forEach(cls => {
@@ -194,55 +308,47 @@
                 document.getElementById('end-screen').style.background = isWin ? 'rgba(0,40,0,0.95)' : 'rgba(40,0,0,0.95)';
                 document.getElementById('end-title').innerText = isWin ? 'SUCCESS' : 'FAILURE';
                 document.getElementById('end-title').style.color = isWin ? 'var(--team-color)' : 'var(--boss-color)';
-                document.getElementById('end-msg').innerText = isWin ? 'PROJETO FINALIZADO E APROVADO COM DISTINÇÃO' : 'CÓDIGO LEGADO DETECTADO - PROJETO ABORTADO';
+                document.getElementById('end-msg').innerText = isWin ? 'PROJETO APROVADO COM DISTINÇÃO' : 'REPROVADO - CÓDIGO LEGADO DETECTADO';
             }
 
-            // 4. Atualização Visual do Boss
+            // 4. Imagem do Professor
             if (boss) {
-                document.getElementById('boss-img').innerText = bossIcons[boss.id] || '👾';
+                const bossImgElement = document.getElementById('boss-img');
+                const newSrc = bossImages[boss.id] || bossImages.tcc_titan;
+                if(!bossImgElement.src.includes(newSrc)) bossImgElement.src = newSrc;
                 document.getElementById('boss-name-text').innerText = boss.name;
             }
 
-            // 5. Atualização das Barras de HP
+            // 5. HP e Multiplicador
             if (boss && boss.base_hp) {
                 const bossPct = (boss_hp / boss.base_hp) * 100;
                 document.getElementById('boss-fill').style.width = bossPct + '%';
                 document.getElementById('boss-hp').innerText = boss_hp.toLocaleString();
             }
             
-            const teamPct = (team_hp / max_team_hp) * 100;
-            document.getElementById('team-fill').style.width = teamPct + '%';
+            document.getElementById('team-fill').style.width = (team_hp / max_team_hp) * 100 + '%';
             document.getElementById('team-hp').innerText = team_hp.toLocaleString();
             document.getElementById('max-team-hp').innerText = max_team_hp.toLocaleString();
-            
             document.getElementById('mult-val').innerText = multiplier.toFixed(2);
 
-            // 6. Efeito de Shake quando o Boss leva dano
             if (boss_hp < lastHp) {
                 document.getElementById('boss-img').classList.add('shake');
                 setTimeout(() => document.getElementById('boss-img').classList.remove('shake'), 200);
             }
             lastHp = boss_hp;
 
-            // 7. Gestão de Incidentes (Barra de Progresso Amarela)
+            // 6. Incidentes
             const incidentDiv = document.getElementById('incident-overlay');
             if (active_incident && active_incident.id) {
                 incidentDiv.style.display = 'flex';
                 document.getElementById('incident-name').innerText = active_incident.id.toUpperCase();
                 document.getElementById('incident-count').innerText = `${active_incident.current_clicks}/${active_incident.target_quota}`;
-                const incPct = (active_incident.current_clicks / active_incident.target_quota) * 100;
-                document.getElementById('incident-bar-fill').style.width = incPct + '%';
-                
-                // Loga apenas quando o incidente inicia
-                if (active_incident.current_clicks === 0) {
-                    addLog(`ALERTA: Incidente ${active_incident.id} detectado!`);
-                }
+                document.getElementById('incident-bar-fill').style.width = (active_incident.current_clicks / active_incident.target_quota) * 100 + '%';
             } else {
                 incidentDiv.style.display = 'none';
             }
         });
 
-        // Função para adicionar logs no painel lateral
         function addLog(msg) {
             const log = document.getElementById('event-log');
             const entry = document.createElement('div');
